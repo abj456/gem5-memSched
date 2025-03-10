@@ -116,7 +116,7 @@ def exit_event_handler():
     print("Third exit: Finished `after_boot.sh` script")
     # The after_boot.sh script will run a script if it is passed via
     # m5 readfile. This is the last exit event before the simulation exits.
-    yield True
+    yield False
 
 
 simulator = Simulator(

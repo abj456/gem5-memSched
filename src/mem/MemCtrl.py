@@ -47,7 +47,7 @@ from m5.proxy import *
 # Enum for memory scheduling algorithms, currently First-Come
 # First-Served and a First-Row Hit then First-Come First-Served
 class MemSched(Enum):
-    vals = ["fcfs", "frfcfs"]
+    vals = ["fcfs", "frfcfs", "atlas"]
 
 
 # MemCtrl is a single-channel single-ported Memory controller model
@@ -90,7 +90,7 @@ class MemCtrl(QoSMemCtrl):
     )
 
     # scheduler, address map and page policy
-    mem_sched_policy = Param.MemSched("frfcfs", "Memory scheduling policy")
+    mem_sched_policy = Param.MemSched("atlas", "Memory scheduling policy")
 
     # pipeline latency of the controller and PHY, split into a
     # frontend part and a backend part, with reads and writes serviced

@@ -44,6 +44,7 @@
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
 #include "debug/MemCtrl.hh"
+#include "debug/MemScheduling.hh"
 #include "debug/NVM.hh"
 #include "debug/QOS.hh"
 #include "mem/dram_interface.hh"
@@ -590,6 +591,9 @@ MemCtrl::chooseNext(MemPacketQueue& queue, Tick extra_col_delay,
             Tick col_allowed_at;
             std::tie(ret, col_allowed_at)
                     = chooseNextFRFCFS(queue, extra_col_delay, mem_intr);
+        } else if (memSchedPolicy == enums::atlas) {
+            DPRINTF(MemScheduling, "ATLAS algorithm selected\n");
+            panic("ATLAS NOT IMPLEMENTED\n");
         } else {
             panic("No scheduling policy chosen\n");
         }
