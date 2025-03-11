@@ -260,6 +260,12 @@ NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
     return std::make_pair(selected_pkt_it, selected_col_at);
 }
 
+std::pair<MemPacketQueue::iterator, Tick>
+NVMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
+    panic("ATLAS NOT IMPLEMENTED IN NVM\n");
+    return {};
+}
+
 void
 NVMInterface::chooseRead(MemPacketQueue& queue)
 {

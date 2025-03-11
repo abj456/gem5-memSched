@@ -268,6 +268,12 @@ class MemInterface : public AbstractMemory
     chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const = 0;
 
     /*
+     * For ATLAS policy
+     */
+    virtual std::pair<MemPacketQueue::iterator, Tick>
+    chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const = 0;
+
+    /*
      * Function to calulate unloaded latency
      */
     virtual Tick accessLatency() const = 0;

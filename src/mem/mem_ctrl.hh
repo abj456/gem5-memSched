@@ -432,6 +432,10 @@ class MemCtrl : public qos::MemCtrl
     chooseNextFRFCFS(MemPacketQueue& queue, Tick extra_col_delay,
                     MemInterface* mem_intr);
 
+    virtual std::pair<MemPacketQueue::iterator, Tick>
+    chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
+                    MemInterface* mem_intr);
+
     /**
      * Calculate burst window aligned tick
      *

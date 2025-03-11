@@ -171,6 +171,12 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
     return std::make_pair(selected_pkt_it, selected_col_at);
 }
 
+std::pair<MemPacketQueue::iterator, Tick>
+DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
+    panic("ATLAS NOT IMPLEMENTED IN DRAM\n");
+    return {};
+}
+
 void
 DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
                        Tick act_tick, uint32_t row)

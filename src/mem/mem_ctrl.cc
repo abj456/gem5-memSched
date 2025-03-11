@@ -593,7 +593,9 @@ MemCtrl::chooseNext(MemPacketQueue& queue, Tick extra_col_delay,
                     = chooseNextFRFCFS(queue, extra_col_delay, mem_intr);
         } else if (memSchedPolicy == enums::atlas) {
             DPRINTF(MemScheduling, "ATLAS algorithm selected\n");
-            panic("ATLAS NOT IMPLEMENTED\n");
+            Tick col_allowed_at;
+            std::tie(ret, col_allowed_at)
+                    = chooseNextATLAS(queue, extra_col_delay, mem_intr);
         } else {
             panic("No scheduling policy chosen\n");
         }
@@ -618,6 +620,18 @@ MemCtrl::chooseNextFRFCFS(MemPacketQueue& queue, Tick extra_col_delay,
     if (selected_pkt_it == queue.end()) {
         DPRINTF(MemCtrl, "%s no available packets found\n", __func__);
     }
+
+    return std::make_pair(selected_pkt_it, col_allowed_at);
+}
+
+std::pair<MemPacketQueue::iterator, Tick>
+MemCtrl::chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
+                                MemInterface* mem_intr)
+{
+    auto selected_pkt_it = queue.end();
+    Tick col_allowed_at = MaxTick;
+
+    panic("ATLAS NOT IMPLEMENTED\n");
 
     return std::make_pair(selected_pkt_it, col_allowed_at);
 }

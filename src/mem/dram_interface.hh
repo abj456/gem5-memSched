@@ -730,6 +730,9 @@ class DRAMInterface : public MemInterface
     std::pair<MemPacketQueue::iterator, Tick>
     chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const override;
 
+    std::pair<MemPacketQueue::iterator, Tick>
+    chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const override;
+
     /**
      * Actually do the burst - figure out the latency it
      * will take to service the req based on bank state, channel state etc

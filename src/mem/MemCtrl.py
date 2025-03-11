@@ -65,7 +65,7 @@ class MemCtrl(QoSMemCtrl):
 
     # Interface to memory media
     dram = Param.MemInterface(
-        "Memory interface, can be a DRAMor an NVM interface "
+        "Memory interface, can be a DRAM or an NVM interface "
     )
 
     # read and write buffer depths are set in the interface
@@ -90,7 +90,7 @@ class MemCtrl(QoSMemCtrl):
     )
 
     # scheduler, address map and page policy
-    mem_sched_policy = Param.MemSched("atlas", "Memory scheduling policy")
+    mem_sched_policy = Param.MemSched("frfcfs", "Memory scheduling policy")
 
     # pipeline latency of the controller and PHY, split into a
     # frontend part and a backend part, with reads and writes serviced
