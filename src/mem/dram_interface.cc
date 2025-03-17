@@ -174,6 +174,47 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
 std::pair<MemPacketQueue::iterator, Tick>
 DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
     panic("ATLAS NOT IMPLEMENTED IN DRAM\n");
+
+    Tick selected_col_at = MaxTick;
+    auto selected_pkt_it = queue.end();
+    RequestorID requestor_id = 0;
+
+    for (auto i = queue.begin(); i != queue.end(); ++i) {
+        MemPacket *pkt = *i;
+
+        // select optimal DRAM packet in Q
+        if (pkt->isDram() && pkt->pseudoChannel == pseudoChannel) {
+            const Bank &bank = ranks[pkt->rank]->banks[pkt->bank];
+            const Tick col_allowed_at = pkt->isRead() ? bank.rdAllowedAt :
+                                                        bank.wrAllowedAt;
+
+            DPRINTF(DRAM, "%s checking DRAM packet in bank %d, row %d\n",
+                __func__, pkt->bank, pkt->row);
+
+            // check if rank is not doing a refresh and thus is available,
+            // if not, jump to the next packet
+            if (burstReady(pkt)) {
+
+                DPRINTF(DRAM,
+                    "%s bank %d - Rank %d available\n", __func__,
+                    pkt->bank, pkt->rank);
+
+                // check if it is a marked packet
+                if (pkt->isMarked()) {
+
+                    selected_pkt_it = i;
+                    selected_col_at = col_allowed_at;
+                    break;
+                } else if (pkt->requestorId() > requestor_id) {
+
+                }
+
+            } else {
+                DPRINTF(DRAM, "%s bank %d - Rank %d not available\n", __func__,
+                        pkt->bank, pkt->rank);
+            }
+        }
+    }
     return {};
 }
 
