@@ -175,6 +175,31 @@ std::pair<MemPacketQueue::iterator, Tick>
 DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
     panic("ATLAS NOT IMPLEMENTED IN DRAM\n");
 
+    std::vector<uint32_t> earliest_banks(ranksPerChannel, 0);
+
+    // Has minBankPrep been called to populate earliest_banks?
+    bool filled_earliest_banks = false;
+    // can the PRE/ACT sequence be done without impacting utlization?
+    bool hidden_bank_prep = false;
+
+    // search for seamless row hits first, if no seamless row hit is
+    // found then determine if there are other packets that can be issued
+    // without incurring additional bus delay due to bank timing
+    // Will select closed rows first to enable more open row possibilies
+    // in future selections
+    bool found_hidden_bank = false;
+
+    // remember if we found a row hit, not seamless, but bank prepped
+    // and ready
+    bool found_prepped_pkt = false;
+
+    // if we have no row hit, prepped or not, and no seamless packet,
+    // just go for the earliest possible
+    bool found_earliest_pkt = false;
+
+    // if find a marked packet, compare it to all other packets
+    bool found_marked_pkt = false;
+
     Tick selected_col_at = MaxTick;
     auto selected_pkt_it = queue.end();
     RequestorID requestor_id = 0;
@@ -199,15 +224,97 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
                     "%s bank %d - Rank %d available\n", __func__,
                     pkt->bank, pkt->rank);
 
-                // check if it is a marked packet
-                if (pkt->isMarked()) {
+                // avoid thread starvation
+                if (pkt->isMarked() || found_marked_pkt) {
+                    // check if it is a marked packet
 
-                    selected_pkt_it = i;
-                    selected_col_at = col_allowed_at;
-                    break;
-                } else if (pkt->requestorId() > requestor_id) {
-
+                    if (!found_marked_pkt) { // if we find first marked packet
+                        selected_pkt_it = i;
+                        selected_col_at = col_allowed_at;
+                        found_marked_pkt = true;
+                        continue;
+                    } else if (pkt->isMarked() ^ found_marked_pkt) {
+                        // if current packet is marked
+                        // XOR selected packet is marked
+                        selected_pkt_it = found_marked_pkt ?
+                                            selected_pkt_it : i;
+                        selected_col_at = found_marked_pkt ?
+                                            selected_col_at : col_allowed_at;
+                        continue; // keep marked packet is selected
+                    }
                 }
+
+                // Least Attained Service
+                if (selected_pkt_it != queue.end()) {
+                    // check if current req ranking is higher than selected one
+                    MemPacket *selected_pkt = *selected_pkt_it;
+                    int rank1 = ranking[selected_pkt->pkt->req->taskId()];
+                    int rank2 = ranking[pkt->pkt->req->taskId()];
+
+                    if (rank1 != rank2) {
+                        if (rank1 < rank2) {
+                            selected_pkt_it = i;
+                            selected_col_at = col_allowed_at;
+                        }
+                        continue;
+                    }
+                }
+
+                // FR-FCFS
+                if (bank.openRow == pkt->row) {
+                    // check if it is a row hit
+                    // no additional rank-to-rank or same bank-group
+                    // delays, or we switched read/write and might as well
+                    // go for the row hit
+                    if (col_allowed_at <= min_col_at) {
+                        // FCFS within the hits, giving priority to
+                        // commands that can issue seamlessly, without
+                        // additional delay, such as same rank accesses
+                        // and/or different bank-group accesses
+                        DPRINTF(DRAM, "%s Seamless buffer hit\n", __func__);
+                        selected_pkt_it = i;
+                        selected_col_at = col_allowed_at;
+                        // no need to look through the remaining queue entries
+                        break;
+                    } else if (!found_hidden_bank && !found_prepped_pkt) {
+                        // if we did not find a packet to a closed row that can
+                        // issue the bank commands without incurring delay, and
+                        // did not yet find a packet to a prepped row, remember
+                        // the current one
+                        selected_pkt_it = i;
+                        selected_col_at = col_allowed_at;
+                        found_prepped_pkt = true;
+                        DPRINTF(DRAM, "%s Prepped row buffer hit\n", __func__);
+                    }
+                } else if (!found_earliest_pkt) { // FCFS
+                    // if we have not initialised the bank status, do it
+                    // now, and only once per scheduling decisions
+                    if (!filled_earliest_banks) {
+                        // determine entries with earliest bank delay
+                        std::tie(earliest_banks, hidden_bank_prep) =
+                            minBankPrep(queue, min_col_at);
+                        filled_earliest_banks = true;
+                    }
+
+                    // bank is amongst first available banks
+                    // minBankPrep will give priority to packets that can
+                    // issue seamlessly
+                    if (bits(earliest_banks[pkt->rank],
+                             pkt->bank, pkt->bank)) {
+                        found_earliest_pkt = true;
+                        found_hidden_bank = hidden_bank_prep;
+
+                        // give priority to packets that can issue
+                        // bank commands 'behind the scenes'
+                        // any additional delay if any will be due to
+                        // col-to-col command requirements
+                        if (hidden_bank_prep || !found_prepped_pkt) {
+                            selected_pkt_it = i;
+                            selected_col_at = col_allowed_at;
+                        }
+                    }
+                }
+
 
             } else {
                 DPRINTF(DRAM, "%s bank %d - Rank %d not available\n", __func__,
@@ -215,7 +322,12 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
             }
         }
     }
-    return {};
+
+    if (selected_pkt_it == queue.end()) {
+        DPRINTF(DRAM, "%s no available DRAM ranks found\n", __func__);
+    }
+
+    return std::make_pair(selected_pkt_it, selected_col_at);
 }
 
 void

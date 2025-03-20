@@ -662,6 +662,25 @@ class DRAMInterface : public MemInterface
         return (burstInterleave ? tBURST_MAX / 2 : tBURST);
     }
 
+    /**
+     * For ATLAS policy, find first DRAM command that can issue and accomplish
+     * requirements of ATLAS
+     */
+    // max number of tasks: 1024 (0-1023)
+    std::vector<int> ranking; // ranking of all threads (processors)
+    std::vector<uint32_t> service_bank_cnt;
+    std::vector<double> curr_service;
+    std::vector<double> service;
+    int quantum_cycles_left;
+
+    void increment_service() { }
+
+    void mark_old_requests() {}
+
+    void decay_service() {}
+
+    void assign_rank() {}
+
   public:
     /**
      * Initialize the DRAM interface and verify parameters
@@ -730,6 +749,10 @@ class DRAMInterface : public MemInterface
     std::pair<MemPacketQueue::iterator, Tick>
     chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const override;
 
+    /**
+     * For ATLAS policy, find first DRAM command that can issue and accomplish
+     * requirements of ATLAS
+     */
     std::pair<MemPacketQueue::iterator, Tick>
     chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const override;
 
