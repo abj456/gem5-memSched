@@ -100,7 +100,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
 void
 MemCtrl::init()
 {
-   if (!port.isConnected()) {
+    if (!port.isConnected()) {
         fatal("MemCtrl %s is unconnected!\n", name());
     } else {
         port.sendRangeChange();
@@ -112,6 +112,8 @@ MemCtrl::startup()
 {
     // remember the memory system mode of operation
     isTimingMode = system()->isTimingMode();
+
+    last_quantum = curTick();
 
     if (isTimingMode) {
         // shift the bus busy time sufficiently far ahead that we never
@@ -592,7 +594,7 @@ MemCtrl::chooseNext(MemPacketQueue& queue, Tick extra_col_delay,
             std::tie(ret, col_allowed_at)
                     = chooseNextFRFCFS(queue, extra_col_delay, mem_intr);
         } else if (memSchedPolicy == enums::atlas) {
-            DPRINTF(MemScheduling, "ATLAS algorithm selected\n");
+            // DPRINTF(MemScheduling, "ATLAS algorithm selected\n");
             Tick col_allowed_at;
             std::tie(ret, col_allowed_at)
                     = chooseNextATLAS(queue, extra_col_delay, mem_intr);
@@ -628,10 +630,39 @@ std::pair<MemPacketQueue::iterator, Tick>
 MemCtrl::chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
                                 MemInterface* mem_intr)
 {
+    // panic("ATLAS NOT IMPLEMENTED\n");
+
     auto selected_pkt_it = queue.end();
     Tick col_allowed_at = MaxTick;
 
-    panic("ATLAS NOT IMPLEMENTED\n");
+    // time we need to issue a column command to be seamless
+    const Tick min_col_at = std::max(mem_intr->nextBurstAt + extra_col_delay,
+        curTick());
+
+    std::tie(selected_pkt_it, col_allowed_at) =
+                mem_intr->chooseNextATLAS(queue, min_col_at);
+
+    if (selected_pkt_it == queue.end()) {
+        DPRINTF(MemCtrl, "%s no available packets found\n", __func__);
+    } else {
+        ((DRAMInterface*)mem_intr)->updateAtlasRank(
+            (*selected_pkt_it)->requestorId(), 1
+        );
+
+        // mark old requests to avoid starvation
+        // ((DRAMInterface*)mem_intr)->mark_old_requests(queue);
+
+        if (curTick() - last_quantum > quantum_ticks) {
+            DPRINTF(MemScheduling, "In %s, last quantum = %llu\n",
+                    __func__, last_quantum);
+
+            last_quantum = curTick();
+            // ((DRAMInterface*)mem_intr)->updateAtlasRank(
+            //     (*selected_pkt_it)->requestorId(), 0
+            // );
+            ((DRAMInterface*)mem_intr)->decay_service(decay_factor);
+        }
+    }
 
     return std::make_pair(selected_pkt_it, col_allowed_at);
 }

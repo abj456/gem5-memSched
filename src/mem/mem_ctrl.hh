@@ -443,6 +443,18 @@ class MemCtrl : public qos::MemCtrl
     chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
                     MemInterface* mem_intr);
 
+    Tick last_quantum;
+
+    /**
+     * Used to periodically decay the service of each requestor
+     */
+    const Tick quantum_ticks = 50000000;
+
+    /**
+     * Decay factor for ATLAS
+     */
+    const double decay_factor = 0.9;
+
     /**
      * Calculate burst window aligned tick
      *

@@ -666,20 +666,12 @@ class DRAMInterface : public MemInterface
      * For ATLAS policy, find first DRAM command that can issue and accomplish
      * requirements of ATLAS
      */
-    // max number of tasks: 1024 (0-1023)
-    std::vector<int> ranking; // ranking of all threads (processors)
+    // ranking of all requestors
+    std::unordered_map<int, double> atlasRanking;
     std::vector<uint32_t> service_bank_cnt;
     std::vector<double> curr_service;
-    std::vector<double> service;
+    std::vector<double> attainedService;
     int quantum_cycles_left;
-
-    void increment_service() { }
-
-    void mark_old_requests() {}
-
-    void decay_service() {}
-
-    void assign_rank() {}
 
   public:
     /**
@@ -755,6 +747,19 @@ class DRAMInterface : public MemInterface
      */
     std::pair<MemPacketQueue::iterator, Tick>
     chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const override;
+
+    /**
+     * Used to avoid starvation in ATLAS policy
+     */
+    const Tick threshold_ticks = 500000;
+    void updateAtlasRank(RequestorID rid, double delta);
+    // void increment_service();
+
+    void mark_old_requests(MemPacketQueue& queue);
+
+    void decay_service(double decay_factor);
+
+    // void assign_rank();
 
     /**
      * Actually do the burst - figure out the latency it

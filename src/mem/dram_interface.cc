@@ -43,9 +43,11 @@
 #include "base/bitfield.hh"
 #include "base/cprintf.hh"
 #include "base/trace.hh"
+#include "debug/ATLAS.hh" // abj456 added
 #include "debug/DRAM.hh"
 #include "debug/DRAMPower.hh"
 #include "debug/DRAMState.hh"
+#include "debug/MemScheduling.hh" // abj456 added
 #include "sim/system.hh"
 
 namespace gem5
@@ -171,9 +173,39 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
     return std::make_pair(selected_pkt_it, selected_col_at);
 }
 
+void DRAMInterface::updateAtlasRank(RequestorID rid, double delta) {
+    // DPRINTF(MemScheduling, "In %s, requestor id = %u, delta = %f\n",
+    //            __func__, rid, delta);
+    if (atlasRanking.count(rid) == 0) {
+        atlasRanking[rid] = delta;
+    } else {
+        atlasRanking[rid] += delta;
+    }
+}
+
+void DRAMInterface::mark_old_requests(MemPacketQueue& queue) {
+    // for (auto i = queue.begin(); i != queue.end(); ++i) {
+    //     MemPacket* pkt = *i;
+    //     if (pkt->isDram() && pkt->pseudoChannel == pseudoChannel) {
+    //         if (curTick() - pkt->entryTime > threshold_ticks) {
+    //             pkt->marked = true;
+    //         }
+    //     }
+    // }
+}
+
+void DRAMInterface::decay_service(double decay_factor) {
+    DPRINTF(MemScheduling, "In %s, decay service\n", __func__);
+    for (auto &req_rank: atlasRanking) {
+        DPRINTF(MemScheduling, "In %s, requestor id = %u, service = %f\n",
+                __func__, req_rank.first, req_rank.second);
+        req_rank.second *= decay_factor;
+    }
+}
+
 std::pair<MemPacketQueue::iterator, Tick>
 DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
-    panic("ATLAS NOT IMPLEMENTED IN DRAM\n");
+    // panic("ATLAS NOT IMPLEMENTED IN DRAM\n");
 
     std::vector<uint32_t> earliest_banks(ranksPerChannel, 0);
 
@@ -202,7 +234,6 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
 
     Tick selected_col_at = MaxTick;
     auto selected_pkt_it = queue.end();
-    RequestorID requestor_id = 0;
 
     for (auto i = queue.begin(); i != queue.end(); ++i) {
         MemPacket *pkt = *i;
@@ -213,51 +244,60 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
             const Tick col_allowed_at = pkt->isRead() ? bank.rdAllowedAt :
                                                         bank.wrAllowedAt;
 
-            DPRINTF(DRAM, "%s checking DRAM packet in bank %d, row %d\n",
+            DPRINTF(ATLAS, "%s checking DRAM packet in bank %d, row %d\n",
                 __func__, pkt->bank, pkt->row);
 
             // check if rank is not doing a refresh and thus is available,
             // if not, jump to the next packet
             if (burstReady(pkt)) {
 
-                DPRINTF(DRAM,
+                DPRINTF(ATLAS,
                     "%s bank %d - Rank %d available\n", __func__,
                     pkt->bank, pkt->rank);
 
                 // avoid thread starvation
-                if (pkt->isMarked() || found_marked_pkt) {
-                    // check if it is a marked packet
+                // if (pkt->isMarked() || found_marked_pkt) {
+                //     // check if it is a marked packet
 
-                    if (!found_marked_pkt) { // if we find first marked packet
-                        selected_pkt_it = i;
-                        selected_col_at = col_allowed_at;
-                        found_marked_pkt = true;
-                        continue;
-                    } else if (pkt->isMarked() ^ found_marked_pkt) {
-                        // if current packet is marked
-                        // XOR selected packet is marked
-                        selected_pkt_it = found_marked_pkt ?
-                                            selected_pkt_it : i;
-                        selected_col_at = found_marked_pkt ?
-                                            selected_col_at : col_allowed_at;
-                        continue; // keep marked packet is selected
-                    }
-                }
+                // suppose we find first marked packet
+                //     if (!found_marked_pkt) {
+                //         selected_pkt_it = i;
+                //         selected_col_at = col_allowed_at;
+                //         found_marked_pkt = true;
+
+                //         continue;
+                //     } else if (pkt->isMarked() ^ found_marked_pkt) {
+                //         // if current packet is marked
+                //         // XOR selected packet is marked
+                //         selected_pkt_it = found_marked_pkt ?
+            //                             selected_pkt_it : i;
+                //         selected_col_at = found_marked_pkt ?
+            //                             selected_col_at : col_allowed_at;
+
+                //         continue; // keep marked packet is selected
+                //     }
+                // }
 
                 // Least Attained Service
                 if (selected_pkt_it != queue.end()) {
-                    // check if current req ranking is higher than selected one
-                    MemPacket *selected_pkt = *selected_pkt_it;
-                    int rank1 = ranking[selected_pkt->pkt->req->taskId()];
-                    int rank2 = ranking[pkt->pkt->req->taskId()];
+                    // check if curr req ranking < selected one
+                    RequestorID best_req_id =
+                                    (*selected_pkt_it)->requestorId();
+                    RequestorID curr_req_id = pkt->requestorId();
+                    double best_rank = (atlasRanking.count(best_req_id))
+                                        ? atlasRanking.at(best_req_id)
+                                        : __DBL_MAX__;
+                    double curr_rank = (atlasRanking.count(curr_req_id))
+                                        ? atlasRanking.at(curr_req_id)
+                                        : __DBL_MAX__;
 
-                    if (rank1 != rank2) {
-                        if (rank1 < rank2) {
+                    // if (best_rank != curr_rank) {
+                        if (curr_rank < best_rank) {
                             selected_pkt_it = i;
                             selected_col_at = col_allowed_at;
                         }
                         continue;
-                    }
+                    // }
                 }
 
                 // FR-FCFS
@@ -317,15 +357,18 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
 
 
             } else {
-                DPRINTF(DRAM, "%s bank %d - Rank %d not available\n", __func__,
-                        pkt->bank, pkt->rank);
+                DPRINTF(ATLAS, "%s bank %d - Rank %d not available\n",
+                    __func__, pkt->bank, pkt->rank);
             }
         }
     }
 
     if (selected_pkt_it == queue.end()) {
-        DPRINTF(DRAM, "%s no available DRAM ranks found\n", __func__);
+        DPRINTF(ATLAS, "%s no available DRAM ranks found\n", __func__);
     }
+    // RequestorID req_id = (*selected_pkt_it)->requestorId();
+    // DPRINTF(ATLAS, "In %s, atlasRank[%u] = %f\n",
+    //         __func__, req_id, atlasRanking.at(req_id));
 
     return std::make_pair(selected_pkt_it, selected_col_at);
 }
