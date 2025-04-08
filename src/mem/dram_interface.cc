@@ -176,7 +176,7 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
 void DRAMInterface::updateAtlasRank(RequestorID rid, double delta) {
     // DPRINTF(MemScheduling, "In %s, requestor id = %u, delta = %f\n",
     //            __func__, rid, delta);
-    if (atlasRanking.count(rid) == 0) {
+    if (atlasRanking.find(rid) == atlasRanking.end()) {
         atlasRanking[rid] = delta;
     } else {
         atlasRanking[rid] += delta;
@@ -184,23 +184,44 @@ void DRAMInterface::updateAtlasRank(RequestorID rid, double delta) {
 }
 
 void DRAMInterface::mark_old_requests(MemPacketQueue& queue) {
-    // for (auto i = queue.begin(); i != queue.end(); ++i) {
-    //     MemPacket* pkt = *i;
-    //     if (pkt->isDram() && pkt->pseudoChannel == pseudoChannel) {
-    //         if (curTick() - pkt->entryTime > threshold_ticks) {
-    //             pkt->marked = true;
-    //         }
-    //     }
-    // }
+    panic("DO NOT USE THIS FUNCTION\n");
 }
 
 void DRAMInterface::decay_service(double decay_factor) {
     DPRINTF(MemScheduling, "In %s, decay service\n", __func__);
+    if (atlasRanking.size() < 2) {
+        DPRINTF(MemScheduling, "ranking size < 2, return\n");
+        return;
+    }
+
+    auto min_rank_req = min_element(atlasRanking.begin(), atlasRanking.end(),
+                                      [](const auto &p1, const auto &p2) {
+                                          return p1.second < p2.second;
+                                      });
+    auto max_rank_req = max_element(atlasRanking.begin(), atlasRanking.end(),
+                                      [](const auto &p1, const auto &p2) {
+                                          return p1.second < p2.second;
+                                      });
+    DPRINTF(MemScheduling,
+            "In %s, min req %u rank = %f, max req %u rank = %f\n",
+            __func__,
+            min_rank_req->first, min_rank_req->second,
+            max_rank_req->first, max_rank_req->second);
+
+    RequestorID min_req_id = min_rank_req->first;
+    double min_rank = min_rank_req->second;
+    double max_rank = max_rank_req->second;
+
     for (auto &req_rank: atlasRanking) {
+        double cur_rank = req_rank.second;
+        req_rank.second = (std::isnan(cur_rank)) ? 0.0
+                            : (cur_rank - min_rank) / (max_rank - min_rank);
+
         DPRINTF(MemScheduling, "In %s, requestor id = %u, service = %f\n",
                 __func__, req_rank.first, req_rank.second);
-        req_rank.second *= decay_factor;
     }
+
+    atlasRanking.erase(min_rank_req);
 }
 
 std::pair<MemPacketQueue::iterator, Tick>
@@ -229,9 +250,6 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
     // just go for the earliest possible
     bool found_earliest_pkt = false;
 
-    // if find a marked packet, compare it to all other packets
-    bool found_marked_pkt = false;
-
     Tick selected_col_at = MaxTick;
     auto selected_pkt_it = queue.end();
 
@@ -254,29 +272,6 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
                 DPRINTF(ATLAS,
                     "%s bank %d - Rank %d available\n", __func__,
                     pkt->bank, pkt->rank);
-
-                // avoid thread starvation
-                // if (pkt->isMarked() || found_marked_pkt) {
-                //     // check if it is a marked packet
-
-                // suppose we find first marked packet
-                //     if (!found_marked_pkt) {
-                //         selected_pkt_it = i;
-                //         selected_col_at = col_allowed_at;
-                //         found_marked_pkt = true;
-
-                //         continue;
-                //     } else if (pkt->isMarked() ^ found_marked_pkt) {
-                //         // if current packet is marked
-                //         // XOR selected packet is marked
-                //         selected_pkt_it = found_marked_pkt ?
-            //                             selected_pkt_it : i;
-                //         selected_col_at = found_marked_pkt ?
-            //                             selected_col_at : col_allowed_at;
-
-                //         continue; // keep marked packet is selected
-                //     }
-                // }
 
                 // Least Attained Service
                 if (selected_pkt_it != queue.end()) {
