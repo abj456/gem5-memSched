@@ -64,6 +64,11 @@ def template MwaitInitiateAcc {{
     {
         unsigned s = 0x8;        //size
         unsigned f = 0;          //flags
+#if 1 // add
+        if (!xc->getAddrMonitor()->armed) {
+            return NoFault;
+        }
+#endif
         initiateMemRead(xc, traceData, xc->getAddrMonitor()->vAddr, s, f);
         return NoFault;
     }
