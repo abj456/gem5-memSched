@@ -448,7 +448,7 @@ class MemCtrl : public qos::MemCtrl
     /**
      * Used to periodically decay the service of each requestor
      */
-    const Tick quantum_ticks = 50000000;
+    const Tick quantum_ticks = static_cast<Tick>(1e7);
 
     /**
      * Decay factor for ATLAS

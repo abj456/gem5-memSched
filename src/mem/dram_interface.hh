@@ -667,7 +667,7 @@ class DRAMInterface : public MemInterface
      * requirements of ATLAS
      */
     // ranking of all requestors
-    std::unordered_map<int, double> atlasRanking;
+    std::unordered_map<RequestorID, double> atlasRanking;
     std::vector<uint32_t> service_bank_cnt;
     std::vector<double> curr_service;
     std::vector<double> attainedService;
@@ -751,7 +751,7 @@ class DRAMInterface : public MemInterface
     /**
      * Used to avoid starvation in ATLAS policy
      */
-    const Tick threshold_ticks = 500000;
+    const Tick threshold_ticks = static_cast<Tick>(5e5);
     void updateAtlasRank(RequestorID rid, double delta);
     // void increment_service();
 

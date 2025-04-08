@@ -46,6 +46,7 @@
 #ifndef __MEM_INTERFACE_HH__
 #define __MEM_INTERFACE_HH__
 
+#include <cmath>
 #include <deque>
 #include <string>
 #include <unordered_map>
