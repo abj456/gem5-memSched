@@ -41,10 +41,11 @@
 #include "mem/mem_ctrl.hh"
 
 #include "base/trace.hh"
+#include "debug/ATLAS.hh" // abj456 added
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
 #include "debug/MemCtrl.hh"
-#include "debug/MemScheduling.hh"
+#include "debug/MemScheduling.hh" // abj456 added
 #include "debug/NVM.hh"
 #include "debug/QOS.hh"
 #include "mem/dram_interface.hh"
@@ -645,22 +646,25 @@ MemCtrl::chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
     if (selected_pkt_it == queue.end()) {
         DPRINTF(MemCtrl, "%s no available packets found\n", __func__);
     } else {
-        ((DRAMInterface*)mem_intr)->updateAtlasRank(
-            (*selected_pkt_it)->requestorId(), 1
-        );
-
-        // mark old requests to avoid starvation
-        // ((DRAMInterface*)mem_intr)->mark_old_requests(queue);
+        if ((*selected_pkt_it)->contextId() >= 0) {
+            DPRINTF(ATLAS, "ATLAS: selected packet context %d\n",
+                    (*selected_pkt_it)->contextId());
+            mem_intr->updateAtlasRank(
+                (*selected_pkt_it)->contextId(), 1
+            );
+        }
+        // else {
+        //     DPRINTF(ATLAS, "ATLAS: selected packet context %d, req %d\n",
+        //             (*selected_pkt_it)->contextId(),
+        //             (*selected_pkt_it)->requestorId());
+        // }
 
         if (curTick() - last_quantum > quantum_ticks) {
             DPRINTF(MemScheduling, "In %s, last quantum = %llu\n",
                     __func__, last_quantum);
 
             last_quantum = curTick();
-            // ((DRAMInterface*)mem_intr)->updateAtlasRank(
-            //     (*selected_pkt_it)->requestorId(), 0
-            // );
-            ((DRAMInterface*)mem_intr)->decay_service(decay_factor);
+            mem_intr->decay_service(decay_factor);
         }
     }
 
