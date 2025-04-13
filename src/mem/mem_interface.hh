@@ -275,6 +275,10 @@ class MemInterface : public AbstractMemory
     virtual std::pair<MemPacketQueue::iterator, Tick>
     chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const = 0;
 
+    virtual void updateAtlasRank(ContextID cid, double delta) = 0;
+    virtual void mark_old_requests(MemPacketQueue& queue) = 0;
+    virtual void decay_service(double decay_factor) = 0;
+
     /*
      * Function to calulate unloaded latency
      */

@@ -110,6 +110,7 @@ class MemPacket
 
     /** RequestorID associated with the packet */
     const RequestorID _requestorId;
+    const ContextID _contextId;
 
     const bool read;
 
@@ -173,6 +174,7 @@ class MemPacket
      * (interface compatibility with Packet)
      */
     inline RequestorID requestorId() const { return _requestorId; }
+    inline ContextID contextId() const { return _contextId; }
 
     /**
      * Get the packet size
@@ -203,21 +205,15 @@ class MemPacket
      */
     inline bool isDram() const { return dram; }
 
-    /**
-     * mark old request packet for ATLAS
-     */
-    bool marked;
-    inline bool isMarked() const { return marked; }
 
     MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _channel,
                uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
                Addr _addr, unsigned int _size)
         : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
-          _requestorId(pkt->requestorId()),
+          _requestorId(pkt->requestorId()), _contextId(pkt->contextId()),
           read(is_read), dram(is_dram), pseudoChannel(_channel), rank(_rank),
           bank(_bank), row(_row), bankId(bank_id), addr(_addr), size(_size),
-          burstHelper(NULL), _qosValue(_pkt->qosValue()),
-          marked(false)
+          burstHelper(NULL), _qosValue(_pkt->qosValue())
     { }
 
 };

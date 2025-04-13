@@ -266,6 +266,18 @@ NVMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
     return {};
 }
 
+void NVMInterface::updateAtlasRank(ContextID cid, double delta) {
+    panic("ATLAS NOT IMPLEMENTED IN NVM\n");
+}
+
+void NVMInterface::mark_old_requests(MemPacketQueue& queue) {
+    panic("ATLAS NOT IMPLEMENTED IN NVM\n");
+}
+
+void NVMInterface::decay_service(double decay_factor) {
+    panic("ATLAS NOT IMPLEMENTED IN NVM\n");
+}
+
 void
 NVMInterface::chooseRead(MemPacketQueue& queue)
 {
