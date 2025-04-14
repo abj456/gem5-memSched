@@ -260,6 +260,8 @@ class NVMInterface : public MemInterface
 
     void decay_service(double decay_factor) override;
 
+    void normalize_service() override;
+
     /**
      *  Add rank to rank delay to bus timing to all NVM banks in alli ranks
      *  when access to an alternate interface is issued

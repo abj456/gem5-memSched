@@ -278,6 +278,10 @@ void NVMInterface::decay_service(double decay_factor) {
     panic("ATLAS NOT IMPLEMENTED IN NVM\n");
 }
 
+void NVMInterface::normalize_service() {
+    panic("ATLAS NOT IMPLEMENTED IN NVM\n");
+}
+
 void
 NVMInterface::chooseRead(MemPacketQueue& queue)
 {
