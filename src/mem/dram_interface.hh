@@ -758,6 +758,8 @@ class DRAMInterface : public MemInterface
 
     void decay_service(double decay_factor) override;
 
+    void normalize_service() override;
+
     // void assign_rank();
 
     /**

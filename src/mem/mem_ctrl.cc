@@ -646,25 +646,22 @@ MemCtrl::chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
     if (selected_pkt_it == queue.end()) {
         DPRINTF(MemCtrl, "%s no available packets found\n", __func__);
     } else {
-        if ((*selected_pkt_it)->contextId() >= 0) {
-            DPRINTF(ATLAS, "ATLAS: selected packet context %d\n",
-                    (*selected_pkt_it)->contextId());
-            mem_intr->updateAtlasRank(
-                (*selected_pkt_it)->contextId(), 1
-            );
-        }
-        // else {
-        //     DPRINTF(ATLAS, "ATLAS: selected packet context %d, req %d\n",
-        //             (*selected_pkt_it)->contextId(),
-        //             (*selected_pkt_it)->requestorId());
+        // if ((*selected_pkt_it)->contextId() >= 0) {
+        //     DPRINTF(ATLAS, "ATLAS: selected packet context %d\n",
+        //             (*selected_pkt_it)->contextId());
         // }
+        mem_intr->updateAtlasRank(
+            (*selected_pkt_it)->contextId(), 1
+        );
+        mem_intr->mark_old_requests(queue);
 
         if (curTick() - last_quantum > quantum_ticks) {
             DPRINTF(MemScheduling, "In %s, last quantum = %llu\n",
                     __func__, last_quantum);
 
             last_quantum = curTick();
-            mem_intr->decay_service(decay_factor);
+            // mem_intr->decay_service(decay_factor);
+            mem_intr->normalize_service();
         }
     }
 

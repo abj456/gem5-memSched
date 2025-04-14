@@ -205,6 +205,9 @@ class MemPacket
      */
     inline bool isDram() const { return dram; }
 
+    bool marked = false;
+    inline bool isMarked() const { return marked; }
+
 
     MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _channel,
                uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
@@ -444,12 +447,12 @@ class MemCtrl : public qos::MemCtrl
     /**
      * Used to periodically decay the service of each requestor
      */
-    const Tick quantum_ticks = static_cast<Tick>(1e7);
+    const Tick quantum_ticks = static_cast<Tick>(1e8); // 10M cycles
 
     /**
      * Decay factor for ATLAS
      */
-    const double decay_factor = 0.9;
+    const double decay_factor = 0.875; // alpha factor in ATLAS paper
 
     /**
      * Calculate burst window aligned tick

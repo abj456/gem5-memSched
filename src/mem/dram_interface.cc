@@ -184,11 +184,26 @@ void DRAMInterface::updateAtlasRank(ContextID cid, double delta) {
 }
 
 void DRAMInterface::mark_old_requests(MemPacketQueue& queue) {
-    panic("DO NOT USE THIS FUNCTION\n");
+    // panic("DO NOT USE THIS FUNCTION\n");
+
+    for (auto i = queue.begin(); i != queue.end(); ++i) {
+        MemPacket* pkt = *i;
+        if (pkt->isDram() && (pkt->pseudoChannel == pseudoChannel)) {
+            if (curTick() - pkt->entryTime > threshold_ticks) {
+                pkt->marked = true;
+            }
+        }
+    }
 }
 
 void DRAMInterface::decay_service(double decay_factor) {
-    DPRINTF(MemScheduling, "In %s, decay service\n", __func__);
+    DPRINTF(MemScheduling, "In %s\n", __func__);
+
+
+}
+
+void DRAMInterface::normalize_service() {
+    DPRINTF(MemScheduling, "In %s\n", __func__);
     if (atlasRanking.size() < 2) {
         DPRINTF(MemScheduling, "ranking size < 2, return\n");
         return;
@@ -203,7 +218,7 @@ void DRAMInterface::decay_service(double decay_factor) {
                                           return p1.second < p2.second;
                                       });
     DPRINTF(MemScheduling,
-            "In %s, min req %u rank = %f, max req %u rank = %f\n",
+            "In %s, min req %d rank = %f, max req %d rank = %f\n",
             __func__,
             min_rank_req->first, min_rank_req->second,
             max_rank_req->first, max_rank_req->second);
@@ -214,10 +229,11 @@ void DRAMInterface::decay_service(double decay_factor) {
 
     for (auto &req_rank: atlasRanking) {
         double cur_rank = req_rank.second;
-        req_rank.second = (std::isnan(cur_rank)) ? 0.0
+        req_rank.second = (std::isnan(cur_rank) || cur_rank < 1e-5)
+                            ? 0.0
                             : (cur_rank - min_rank) / (max_rank - min_rank);
 
-        DPRINTF(MemScheduling, "In %s, context id = %u, service = %f\n",
+        DPRINTF(MemScheduling, "In %s, context id = %d, service = %f\n",
                 __func__, req_rank.first, req_rank.second);
     }
 
@@ -273,6 +289,21 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
                     "%s bank %d - Rank %d available\n", __func__,
                     pkt->bank, pkt->rank);
 
+                // first return marked MemPacket
+                if (selected_pkt_it != queue.end() &&
+                    (*selected_pkt_it)->isMarked() ^ pkt->isMarked() ) {
+                    // if we have a marked packet, and the current one is
+                    // not, select the marked one
+                    // if we have a marked packet, and the current one is
+                    // also marked, select the one with the lowest rank
+
+                    DPRINTF(ATLAS, "%s found marked packet\n", __func__);
+                    if (pkt->isMarked()) {
+                        selected_pkt_it = i;
+                        selected_col_at = col_allowed_at;
+                    }
+                    continue;
+                }
                 // Least Attained Service
                 if (selected_pkt_it != queue.end()) {
                     // check if curr req ranking < selected one
