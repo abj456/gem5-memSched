@@ -176,10 +176,10 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
 void DRAMInterface::updateAtlasRank(ContextID cid, double delta) {
     // DPRINTF(ATLAS, "In %s, context id = %u, delta = %f\n",
     //            __func__, cid, delta);
-    if (atlasRanking.find(cid) == atlasRanking.end()) {
-        atlasRanking[cid] = delta;
+    if (curr_service.find(cid) == curr_service.end()) {
+        curr_service[cid] = delta;
     } else {
-        atlasRanking[cid] += delta;
+        curr_service[cid] += delta;
     }
 }
 
@@ -199,7 +199,16 @@ void DRAMInterface::mark_old_requests(MemPacketQueue& queue) {
 void DRAMInterface::decay_service(double decay_factor) {
     DPRINTF(MemScheduling, "In %s\n", __func__);
 
+    for (auto &req_rank: curr_service) {
+        ContextID cid = req_rank.first;
 
+        atlasRanking[cid] = decay_factor * atlasRanking[cid] +
+                            (1 - decay_factor) * curr_service[cid];
+        curr_service[cid] = 0.0;
+
+        DPRINTF(MemScheduling, "In %s, context id = %d, service = %f\n",
+                __func__, cid, atlasRanking[cid]);
+    }
 }
 
 void DRAMInterface::normalize_service() {

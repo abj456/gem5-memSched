@@ -660,8 +660,8 @@ MemCtrl::chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
                     __func__, last_quantum);
 
             last_quantum = curTick();
-            // mem_intr->decay_service(decay_factor);
-            mem_intr->normalize_service();
+            mem_intr->decay_service(decay_factor);
+            // mem_intr->normalize_service();
         }
     }
 

@@ -113,12 +113,12 @@ def exit_event_handler():
     # booted.
     # Here we switch the CPU type to Timing.
     print("Switching to Timing CPU")
-    processor.switch()
+    # processor.switch()
     yield False  # gem5 is now executing the `after_boot.sh` script
     print("Third exit: Finished `after_boot.sh` script")
     # The after_boot.sh script will run a script if it is passed via
     # m5 readfile. This is the last exit event before the simulation exits.
-    yield True
+    yield False
 
 
 simulator = Simulator(

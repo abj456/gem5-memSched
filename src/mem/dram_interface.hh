@@ -668,10 +668,8 @@ class DRAMInterface : public MemInterface
      */
     // ranking of all requestors
     std::unordered_map<ContextID, double> atlasRanking;
-    std::vector<uint32_t> service_bank_cnt;
-    std::vector<double> curr_service;
-    std::vector<double> attainedService;
-    int quantum_cycles_left;
+    std::unordered_map<ContextID, double> curr_service;
+    // std::vector<double> attainedService;
 
   public:
     /**
@@ -751,7 +749,7 @@ class DRAMInterface : public MemInterface
     /**
      * Used to avoid starvation in ATLAS policy
      */
-    const Tick threshold_ticks = static_cast<Tick>(5e5);
+    const Tick threshold_ticks = static_cast<Tick>(1e5);
     void updateAtlasRank(ContextID cid, double delta) override;
 
     void mark_old_requests(MemPacketQueue& queue) override;
