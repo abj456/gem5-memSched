@@ -111,6 +111,7 @@ class MemPacket
     /** RequestorID associated with the packet */
     const RequestorID _requestorId;
     const ContextID _contextId;
+    const uint32_t _taskId;
 
     const bool read;
 
@@ -175,6 +176,7 @@ class MemPacket
      */
     inline RequestorID requestorId() const { return _requestorId; }
     inline ContextID contextId() const { return _contextId; }
+    inline uint32_t taskId() const { return _taskId; }
 
     /**
      * Get the packet size
@@ -213,7 +215,9 @@ class MemPacket
                uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
                Addr _addr, unsigned int _size)
         : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
-          _requestorId(pkt->requestorId()), _contextId(pkt->contextId()),
+          _requestorId(pkt->requestorId()),
+          _contextId(pkt->contextId()),
+          _taskId(pkt->taskId()),
           read(is_read), dram(is_dram), pseudoChannel(_channel), rank(_rank),
           bank(_bank), row(_row), bankId(bank_id), addr(_addr), size(_size),
           burstHelper(NULL), _qosValue(_pkt->qosValue())

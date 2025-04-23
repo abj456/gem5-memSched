@@ -306,7 +306,7 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
                     // if we have a marked packet, and the current one is
                     // also marked, select the one with the lowest rank
 
-                    DPRINTF(ATLAS, "%s found marked packet\n", __func__);
+                    // DPRINTF(ATLAS, "%s found marked packet\n", __func__);
                     if (pkt->isMarked()) {
                         selected_pkt_it = i;
                         selected_col_at = col_allowed_at;

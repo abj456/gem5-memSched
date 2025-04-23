@@ -646,10 +646,6 @@ MemCtrl::chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
     if (selected_pkt_it == queue.end()) {
         DPRINTF(MemCtrl, "%s no available packets found\n", __func__);
     } else {
-        // if ((*selected_pkt_it)->contextId() >= 0) {
-        //     DPRINTF(ATLAS, "ATLAS: selected packet context %d\n",
-        //             (*selected_pkt_it)->contextId());
-        // }
         mem_intr->updateAtlasRank(
             (*selected_pkt_it)->contextId(), 1
         );
@@ -1052,6 +1048,13 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             }
 
             auto mem_pkt = *to_read;
+            if (mem_pkt->contextId() < 0) {
+                DPRINTF(ATLAS,
+                    "ATLAS: mem packet context %d, task id %u, req id %u\n",
+                    mem_pkt->contextId(),
+                    mem_pkt->taskId(),
+                    mem_pkt->requestorId());
+            }
 
             Tick cmd_at = doBurstAccess(mem_pkt, mem_intr);
 
