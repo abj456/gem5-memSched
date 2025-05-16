@@ -36,3 +36,7 @@ configs/dram/lowp_sweep.cfg
 .vscode
 typings
 .DS_Store
+/experiment/*img
+/experiment/sysbench/*
+/experiment/sysbench_fs/*
+/experiment/m5out*
