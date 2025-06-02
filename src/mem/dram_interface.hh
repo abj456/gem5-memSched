@@ -749,7 +749,8 @@ class DRAMInterface : public MemInterface
     /**
      * Used to avoid starvation in ATLAS policy
      */
-    const Tick threshold_ticks = static_cast<Tick>(1e5);
+    const Tick threshold_cycles =
+        static_cast<Tick>(200 * 1e5); // 100K cycles, 200 = 1 / 5GHz ps(ticks)
     void updateAtlasRank(ContextID cid, double delta) override;
 
     void mark_old_requests(MemPacketQueue& queue) override;

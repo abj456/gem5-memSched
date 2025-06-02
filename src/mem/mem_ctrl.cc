@@ -651,7 +651,7 @@ MemCtrl::chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
         );
         mem_intr->mark_old_requests(queue);
 
-        if (curTick() - last_quantum > quantum_ticks) {
+        if (curTick() - last_quantum > quantum_cycles) {
             DPRINTF(MemScheduling, "In %s, last quantum = %llu\n",
                     __func__, last_quantum);
 

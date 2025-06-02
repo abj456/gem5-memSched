@@ -189,7 +189,7 @@ void DRAMInterface::mark_old_requests(MemPacketQueue& queue) {
     for (auto i = queue.begin(); i != queue.end(); ++i) {
         MemPacket* pkt = *i;
         if (pkt->isDram() && (pkt->pseudoChannel == pseudoChannel)) {
-            if (curTick() - pkt->entryTime > threshold_ticks) {
+            if (curTick() - pkt->entryTime > threshold_cycles) {
                 pkt->marked = true;
             }
         }
@@ -311,7 +311,7 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
                         selected_pkt_it = i;
                         selected_col_at = col_allowed_at;
                     }
-                    continue;
+                    break;
                 }
                 // Least Attained Service
                 if (selected_pkt_it != queue.end()) {
