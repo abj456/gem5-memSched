@@ -50,6 +50,7 @@ SimObject('SysBridge.py', sim_objects=['SysBridge'])
 DebugFlag('SysBridge')
 SimObject('MemCtrl.py', sim_objects=['MemCtrl'],
         enums=['MemSched'])
+SimObject('MetaCtrl.py', sim_objects=['MetaCtrl']) # abj456 added
 SimObject('HeteroMemCtrl.py', sim_objects=['HeteroMemCtrl'])
 SimObject('HBMCtrl.py', sim_objects=['HBMCtrl'])
 SimObject('MemInterface.py', sim_objects=['MemInterface'], enums=['AddrMap'])
@@ -79,6 +80,7 @@ Source('drampower.cc')
 Source('external_master.cc')
 Source('external_slave.cc')
 Source('mem_ctrl.cc')
+Source('meta_ctrl.cc') # abj456 added
 Source('hetero_mem_ctrl.cc')
 Source('hbm_ctrl.cc')
 Source('mem_interface.cc')

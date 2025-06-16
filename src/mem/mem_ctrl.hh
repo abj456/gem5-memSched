@@ -215,9 +215,9 @@ class MemPacket
                uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
                Addr _addr, unsigned int _size)
         : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
-          _requestorId(pkt->requestorId()),
-          _contextId(pkt->contextId()),
-          _taskId(pkt->taskId()),
+          _requestorId(pkt->requestorId()), // Added for ATLAS
+          _contextId(pkt->contextId()), // Added for ATLAS
+          _taskId(pkt->taskId()), // Added for ATLAS
           read(is_read), dram(is_dram), pseudoChannel(_channel), rank(_rank),
           bank(_bank), row(_row), bankId(bank_id), addr(_addr), size(_size),
           burstHelper(NULL), _qosValue(_pkt->qosValue())

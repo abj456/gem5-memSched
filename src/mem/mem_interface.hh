@@ -278,7 +278,9 @@ class MemInterface : public AbstractMemory
     virtual void updateAtlasRank(ContextID cid, double delta) = 0;
     virtual void mark_old_requests(MemPacketQueue& queue) = 0;
     virtual void decay_service(double decay_factor) = 0;
-    virtual void normalize_service() = 0;
+    virtual std::unordered_map<ContextID, double> getLocalService() = 0;
+    virtual void updateGlobalService(
+        const std::unordered_map<ContextID, double>& totalAS) = 0;
 
     /*
      * Function to calulate unloaded latency

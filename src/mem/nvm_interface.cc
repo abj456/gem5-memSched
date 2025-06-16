@@ -261,24 +261,36 @@ NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
 }
 
 std::pair<MemPacketQueue::iterator, Tick>
-NVMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
+NVMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const
+{
     panic("ATLAS NOT IMPLEMENTED IN NVM\n");
     return {};
 }
 
-void NVMInterface::updateAtlasRank(ContextID cid, double delta) {
+void NVMInterface::updateAtlasRank(ContextID cid, double delta)
+{
     panic("ATLAS NOT IMPLEMENTED IN NVM\n");
 }
 
-void NVMInterface::mark_old_requests(MemPacketQueue& queue) {
+void NVMInterface::mark_old_requests(MemPacketQueue& queue)
+{
     panic("ATLAS NOT IMPLEMENTED IN NVM\n");
 }
 
-void NVMInterface::decay_service(double decay_factor) {
+void NVMInterface::decay_service(double decay_factor)
+{
     panic("ATLAS NOT IMPLEMENTED IN NVM\n");
 }
 
-void NVMInterface::normalize_service() {
+std::unordered_map<ContextID, double> NVMInterface::getLocalService()
+{
+    panic("ATLAS NOT IMPLEMENTED IN NVM\n");
+    return std::unordered_map<ContextID, double>();
+}
+
+void NVMInterface::updateGlobalService(
+    const std::unordered_map<ContextID, double>& totalAS)
+{
     panic("ATLAS NOT IMPLEMENTED IN NVM\n");
 }
 

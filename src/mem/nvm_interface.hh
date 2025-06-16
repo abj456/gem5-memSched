@@ -260,7 +260,10 @@ class NVMInterface : public MemInterface
 
     void decay_service(double decay_factor) override;
 
-    void normalize_service() override;
+    std::unordered_map<ContextID, double> getLocalService() override;
+
+    void updateGlobalService(
+        const std::unordered_map<ContextID, double>& totalAS) override;
 
     /**
      *  Add rank to rank delay to bus timing to all NVM banks in alli ranks

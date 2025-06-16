@@ -666,9 +666,8 @@ class DRAMInterface : public MemInterface
      * For ATLAS policy, find first DRAM command that can issue and accomplish
      * requirements of ATLAS
      */
-    // ranking of all requestors
-    std::unordered_map<ContextID, double> atlasRanking;
-    std::unordered_map<ContextID, double> curr_service;
+    std::unordered_map<ContextID, double> attainedTotalService;
+    std::unordered_map<ContextID, double> localService;
     // std::vector<double> attainedService;
 
   public:
@@ -757,9 +756,10 @@ class DRAMInterface : public MemInterface
 
     void decay_service(double decay_factor) override;
 
-    void normalize_service() override;
+    std::unordered_map<ContextID, double> getLocalService() override;
 
-    // void assign_rank();
+    void updateGlobalService(
+        const std::unordered_map<ContextID, double>& totalAS) override;
 
     /**
      * Actually do the burst - figure out the latency it

@@ -176,10 +176,10 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
 void DRAMInterface::updateAtlasRank(ContextID cid, double delta) {
     // DPRINTF(ATLAS, "In %s, context id = %u, delta = %f\n",
     //            __func__, cid, delta);
-    if (curr_service.find(cid) == curr_service.end()) {
-        curr_service[cid] = delta;
+    if (localService.find(cid) == localService.end()) {
+        localService[cid] = delta;
     } else {
-        curr_service[cid] += delta;
+        localService[cid] += delta;
     }
 }
 
@@ -199,55 +199,34 @@ void DRAMInterface::mark_old_requests(MemPacketQueue& queue) {
 void DRAMInterface::decay_service(double decay_factor) {
     DPRINTF(MemScheduling, "In %s\n", __func__);
 
-    for (auto &req_rank: curr_service) {
+    for (auto &req_rank: localService) {
         ContextID cid = req_rank.first;
 
-        atlasRanking[cid] = decay_factor * atlasRanking[cid] +
-                            (1 - decay_factor) * curr_service[cid];
-        curr_service[cid] = 0.0;
+        attainedTotalService[cid] = decay_factor * attainedTotalService[cid] +
+                            (1 - decay_factor) * localService[cid];
+        localService[cid] = 0.0;
 
         DPRINTF(MemScheduling, "In %s, context id = %d, service = %f\n",
-                __func__, cid, atlasRanking[cid]);
+                __func__, cid, attainedTotalService[cid]);
     }
 }
 
-void DRAMInterface::normalize_service() {
-    DPRINTF(MemScheduling, "In %s\n", __func__);
-    if (atlasRanking.size() < 2) {
-        DPRINTF(MemScheduling, "ranking size < 2, return\n");
-        return;
-    }
 
-    auto min_rank_req = min_element(atlasRanking.begin(), atlasRanking.end(),
-                                      [](const auto &p1, const auto &p2) {
-                                          return p1.second < p2.second;
-                                      });
-    auto max_rank_req = max_element(atlasRanking.begin(), atlasRanking.end(),
-                                      [](const auto &p1, const auto &p2) {
-                                          return p1.second < p2.second;
-                                      });
-    DPRINTF(MemScheduling,
-            "In %s, min req %d rank = %f, max req %d rank = %f\n",
-            __func__,
-            min_rank_req->first, min_rank_req->second,
-            max_rank_req->first, max_rank_req->second);
-
-    // RequestorID min_req_id = min_rank_req->first;
-    double min_rank = min_rank_req->second;
-    double max_rank = max_rank_req->second;
-
-    for (auto &req_rank: atlasRanking) {
-        double cur_rank = req_rank.second;
-        req_rank.second = (std::isnan(cur_rank) || cur_rank < 1e-5)
-                            ? 0.0
-                            : (cur_rank - min_rank) / (max_rank - min_rank);
-
-        DPRINTF(MemScheduling, "In %s, context id = %d, service = %f\n",
-                __func__, req_rank.first, req_rank.second);
-    }
-
-    // atlasRanking.erase(min_rank_req);
+std::unordered_map<ContextID, double> DRAMInterface::getLocalService() {
+    // return a pointer to the current service map
+    return localService;
 }
+
+void DRAMInterface::updateGlobalService(
+    const std::unordered_map<ContextID, double>& totalAS) {
+    // update the global service map with the local service map
+    for (const auto& [cid, totalService]: totalAS) {
+        attainedTotalService[cid] = totalService;
+    }
+}
+
+} // namespace memory
+} // namespace gem5
 
 std::pair<MemPacketQueue::iterator, Tick>
 DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
@@ -316,15 +295,15 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
                 // Least Attained Service
                 if (selected_pkt_it != queue.end()) {
                     // check if curr req ranking < selected one
-                    ContextID best_cxt_id =
+                    ContextID best_cid =
                                     (*selected_pkt_it)->contextId();
-                    ContextID curr_cxt_id = pkt->contextId();
+                    ContextID curr_cid = pkt->contextId();
 
-                    double best_rank = (atlasRanking.count(best_cxt_id))
-                                        ? atlasRanking.at(best_cxt_id)
+                    double best_rank = (attainedTotalService.count(best_cid))
+                                        ? attainedTotalService.at(best_cid)
                                         : __DBL_MAX__;
-                    double curr_rank = (atlasRanking.count(curr_cxt_id))
-                                        ? atlasRanking.at(curr_cxt_id)
+                    double curr_rank = (attainedTotalService.count(curr_cid))
+                                        ? attainedTotalService.at(curr_cid)
                                         : __DBL_MAX__;
 
                     if (curr_rank < best_rank) {
