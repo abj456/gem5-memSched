@@ -46,6 +46,7 @@
 #include "debug/Drain.hh"
 #include "debug/MemCtrl.hh"
 #include "debug/MemScheduling.hh" // abj456 added
+#include "debug/MetaCtrl.hh" // abj456 added
 #include "debug/NVM.hh"
 #include "debug/QOS.hh"
 #include "mem/dram_interface.hh"
@@ -96,6 +97,25 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
     }
+}
+
+void
+MemCtrl::setMetaCtrl(MetaCtrl* meta_ctrl)
+{
+    metaCtrl = meta_ctrl;
+}
+
+std::unordered_map<ContextID, double>
+MemCtrl::getDramLocalService() const
+{
+    return dram->getLocalService();
+}
+
+void
+MemCtrl::updateGlobalService(
+    std::unordered_map<ContextID, double> attainedGlobalService)
+{
+    dram->updateGlobalService(attainedGlobalService);
 }
 
 void
@@ -651,14 +671,13 @@ MemCtrl::chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
         );
         mem_intr->mark_old_requests(queue);
 
-        if (curTick() - last_quantum > quantum_cycles) {
-            DPRINTF(MemScheduling, "In %s, last quantum = %llu\n",
-                    __func__, last_quantum);
+        // if (curTick() - last_quantum > quantum_cycles) {
+        //     DPRINTF(MemScheduling, "In %s, last quantum = %llu\n",
+        //             __func__, last_quantum);
 
-            last_quantum = curTick();
-            mem_intr->decay_service(decay_factor);
-            // mem_intr->normalize_service();
-        }
+        //     last_quantum = curTick();
+        //     mem_intr->decay_service(decay_factor);
+        // }
     }
 
     return std::make_pair(selected_pkt_it, col_allowed_at);

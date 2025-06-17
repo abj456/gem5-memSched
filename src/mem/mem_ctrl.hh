@@ -55,9 +55,11 @@
 #include "base/callback.hh"
 #include "base/statistics.hh"
 #include "enums/MemSched.hh"
+#include "mem/meta_ctrl.hh"
 #include "mem/qos/mem_ctrl.hh"
 #include "mem/qport.hh"
 #include "params/MemCtrl.hh"
+#include "params/MetaCtrl.hh"
 #include "sim/eventq.hh"
 
 namespace gem5
@@ -700,9 +702,18 @@ class MemCtrl : public qos::MemCtrl
      */
     virtual void pruneBurstTick();
 
+    MetaCtrl* metaCtrl;
+
   public:
 
     MemCtrl(const MemCtrlParams &p);
+
+    void setMetaCtrl(MetaCtrl* meta_ctrl);
+
+    std::unordered_map<ContextID, double> getDramLocalService() const;
+
+    void updateGlobalService(
+      std::unordered_map<ContextID, double> attainedGlobalService);
 
     /**
      * Ensure that all interfaced have drained commands

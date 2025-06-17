@@ -48,6 +48,7 @@
 #include "debug/DRAMPower.hh"
 #include "debug/DRAMState.hh"
 #include "debug/MemScheduling.hh" // abj456 added
+#include "debug/MetaCtrl.hh" // abj456 added
 #include "sim/system.hh"
 
 namespace gem5
@@ -184,8 +185,6 @@ void DRAMInterface::updateAtlasRank(ContextID cid, double delta) {
 }
 
 void DRAMInterface::mark_old_requests(MemPacketQueue& queue) {
-    // panic("DO NOT USE THIS FUNCTION\n");
-
     for (auto i = queue.begin(); i != queue.end(); ++i) {
         MemPacket* pkt = *i;
         if (pkt->isDram() && (pkt->pseudoChannel == pseudoChannel)) {
@@ -211,22 +210,29 @@ void DRAMInterface::decay_service(double decay_factor) {
     }
 }
 
+std::unordered_map<ContextID, double>
+DRAMInterface::getLocalService() {
+    DPRINTF(MetaCtrl, "In %s\n", __func__);
 
-std::unordered_map<ContextID, double> DRAMInterface::getLocalService() {
-    // return a pointer to the current service map
-    return localService;
+    std::unordered_map<ContextID, double> local_service_copy;
+    for (const auto &[cid, service]: localService) {
+        local_service_copy[cid] = service;
+    }
+
+    return local_service_copy;
 }
 
 void DRAMInterface::updateGlobalService(
-    const std::unordered_map<ContextID, double>& totalAS) {
-    // update the global service map with the local service map
-    for (const auto& [cid, totalService]: totalAS) {
-        attainedTotalService[cid] = totalService;
+    const std::unordered_map<ContextID, double>& global_service) {
+    DPRINTF(MetaCtrl, "In %s\n", __func__);
+
+    for (const auto &[cid, service]: global_service) {
+        attainedTotalService[cid] = service;
+
+        DPRINTF(MetaCtrl, "In %s, context id = %d, service = %f\n",
+                __func__, cid, attainedTotalService[cid]);
     }
 }
-
-} // namespace memory
-} // namespace gem5
 
 std::pair<MemPacketQueue::iterator, Tick>
 DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
@@ -381,7 +387,7 @@ DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
     }
     // RequestorID req_id = (*selected_pkt_it)->requestorId();
     // DPRINTF(ATLAS, "In %s, atlasRank[%u] = %f\n",
-    //         __func__, req_id, atlasRanking.at(req_id));
+    //         __func__, req_id, attainedTotalService.at(req_id));
 
     return std::make_pair(selected_pkt_it, selected_col_at);
 }

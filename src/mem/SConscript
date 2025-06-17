@@ -154,6 +154,7 @@ DebugFlag('ExternalPort')
 DebugFlag('HtmMem', 'Hardware Transactional Memory (Mem side)')
 DebugFlag('LLSC')
 DebugFlag('MemCtrl')
+DebugFlag('MetaCtrl') # abj456 added
 DebugFlag('MemScheduling') # abj456 added
 DebugFlag('ATLAS') # abj456 added
 DebugFlag('MMU')
