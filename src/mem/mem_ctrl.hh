@@ -448,13 +448,14 @@ class MemCtrl : public qos::MemCtrl
     chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
                     MemInterface* mem_intr);
 
-    Tick last_quantum;
+    // Tick last_quantum;
 
     /**
      * Used to periodically decay the service of each requestor
      */
-    const Tick quantum_cycles =
-        static_cast<Tick>(200 * 1e7); // 10M cycles, 200 = 1 / 5Ghz ps(ticks)
+    // const Tick quantum_cycles =
+    //     static_cast<Tick>(200 * 1e7);
+    // 10M cycles, 200 = 1 / 5Ghz ps(ticks)
 
     /**
      * Decay factor for ATLAS
@@ -702,18 +703,32 @@ class MemCtrl : public qos::MemCtrl
      */
     virtual void pruneBurstTick();
 
+    /**
+     * Meta controller pointer
+     * This is used to update the global service of the memory controller
+     * and to get the local service of the memory controller.
+     */
     MetaCtrl* metaCtrl;
 
   public:
 
     MemCtrl(const MemCtrlParams &p);
 
+    /**
+     * Set the meta controller pointer
+     */
     void setMetaCtrl(MetaCtrl* meta_ctrl);
 
+    /**
+     * Get the local service of the memory controller
+     */
     std::unordered_map<ContextID, double> getDramLocalService() const;
 
+    /**
+     * Update the global service of the memory controller
+     */
     void updateGlobalService(
-      std::unordered_map<ContextID, double> attainedGlobalService);
+      std::unordered_map<ContextID, double> &attainedGlobalService);
 
     /**
      * Ensure that all interfaced have drained commands

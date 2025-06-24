@@ -227,6 +227,7 @@ void DRAMInterface::updateGlobalService(
     DPRINTF(MetaCtrl, "In %s\n", __func__);
 
     for (const auto &[cid, service]: global_service) {
+        localService[cid] = 0.0;
         attainedTotalService[cid] = service;
 
         DPRINTF(MetaCtrl, "In %s, context id = %d, service = %f\n",

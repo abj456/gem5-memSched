@@ -33,11 +33,6 @@ void MetaCtrl::startup()
 
 void MetaCtrl::processQuantum()
 {
-    // DPRINTF(MetaCtrl,
-    //     "Processing quantum for MetaCtrl %s, memCtrls.size = %u\n",
-    //     name(),
-    //     ctrls.size()
-    // );
     // Reset the local service map for this quantum
     attainedLocalService.clear();
 
@@ -54,6 +49,18 @@ void MetaCtrl::processQuantum()
     for (const auto& [cid, localService] : attainedLocalService) {
         attainedGlobalService[cid] = decay_factor * attainedGlobalService[cid]
                                         + (1 - decay_factor) * localService;
+
+        // Update the stats for this context
+        if (cid < 0) {
+            // If cid is negative, it is the virtual hardware context
+            // which is used for other hw except processors
+            // e.g., prefetcher, mmu, etc.
+            size_t tail = stats.perContextService.size() - 1;
+            stats.perContextService[tail] = attainedGlobalService[cid];
+        } else {
+            // Otherwise, it is a specific context
+            stats.perContextService[cid] = attainedGlobalService[cid];
+        }
     }
 
     // returns the global service map to the memory controllers
@@ -66,6 +73,22 @@ void MetaCtrl::processQuantum()
 }
 
 
+MetaCtrl::MetaCtrlStats::MetaCtrlStats(MetaCtrl &_metaCtrl)
+    : statistics::Group(&_metaCtrl, "meta_ctrl_stats"),
+    metaCtrl(metaCtrl),
+
+    ADD_STAT(perContextService, statistics::units::Count::get(),
+        "Per-context attained service")
+{
+}
+
+void
+MetaCtrl::MetaCtrlStats::regStats()
+{
+    using namespace statistics;
+
+    perContextService.init(metaCtrl.ctrls[0]->system()->threads.size() + 1);
+}
 
 } // namespace memory
 } // namespace gem5

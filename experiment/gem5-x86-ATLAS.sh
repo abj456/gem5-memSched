@@ -36,7 +36,7 @@ elif [ "$BENCHMARK" == "parsec" ] ; then
 		echo "Usage: $0 <benchmark> <size> <heavy> <light> <stats dir> [kvm ticks] [timing ticks]"
 		exit 1
 	fi
-	/home/abj456/gem5/build/X86-ATLAS/gem5.fast \
+	/home/abj456/gem5/build/X86/gem5.opt \
 		-d ./parsec-gem5/m5out-${SIZE}-h${HEAVY_TAIL}-l${LIGHT_TAIL}/atlas-${STATS_DIR}/ \
 		${CONFIG_SCRIPT_DIR}/${BENCHMARK}-x86-fs.py \
 		--size=$SIZE --heavy_threads=$HEAVY_TAIL --light_threads=$LIGHT_TAIL \

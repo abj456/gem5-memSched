@@ -113,7 +113,7 @@ MemCtrl::getDramLocalService() const
 
 void
 MemCtrl::updateGlobalService(
-    std::unordered_map<ContextID, double> attainedGlobalService)
+    std::unordered_map<ContextID, double> &attainedGlobalService)
 {
     dram->updateGlobalService(attainedGlobalService);
 }
@@ -134,7 +134,7 @@ MemCtrl::startup()
     // remember the memory system mode of operation
     isTimingMode = system()->isTimingMode();
 
-    last_quantum = curTick();
+    // last_quantum = curTick();
 
     if (isTimingMode) {
         // shift the bus busy time sufficiently far ahead that we never
@@ -642,6 +642,10 @@ MemCtrl::chooseNextFRFCFS(MemPacketQueue& queue, Tick extra_col_delay,
 
     if (selected_pkt_it == queue.end()) {
         DPRINTF(MemCtrl, "%s no available packets found\n", __func__);
+    } else {
+        mem_intr->updateAtlasRank(
+            (*selected_pkt_it)->contextId(), 1
+        );
     }
 
     return std::make_pair(selected_pkt_it, col_allowed_at);
@@ -651,8 +655,6 @@ std::pair<MemPacketQueue::iterator, Tick>
 MemCtrl::chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
                                 MemInterface* mem_intr)
 {
-    // panic("ATLAS NOT IMPLEMENTED\n");
-
     auto selected_pkt_it = queue.end();
     Tick col_allowed_at = MaxTick;
 

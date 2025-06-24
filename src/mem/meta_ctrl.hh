@@ -11,8 +11,10 @@
 #include <vector>
 
 #include "base/statistics.hh"
+#include "enums/MemSched.hh"
 #include "mem/mem_ctrl.hh"
 #include "params/MetaCtrl.hh"
+#include "sim/sim_object.hh"
 
 namespace gem5
 {
@@ -44,6 +46,20 @@ class MetaCtrl : public SimObject
         static_cast<Tick>(200 * 1e7); // 10M cycles, 200 = 1 / 5Ghz ps(ticks)
 
     const double decay_factor = 0.875; // alpha factor in ATLAS paper
+
+    struct MetaCtrlStats : public statistics::Group
+    {
+        MetaCtrlStats(MetaCtrl &metaCtrl);
+
+        void regStats() override;
+
+        MetaCtrl &metaCtrl;
+
+
+        // Add stats here if needed
+        statistics::Vector perContextService;
+    };
+    MetaCtrlStats stats;
 };
 
 
