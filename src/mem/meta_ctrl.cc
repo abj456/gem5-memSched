@@ -12,7 +12,8 @@ namespace memory
 MetaCtrl::MetaCtrl(const MetaCtrlParams &p):
     SimObject(p),
     quantumEvent([this] { processQuantum(); }, name()),
-    ctrls(p.memCtrls)
+    ctrls(p.memCtrls),
+    stats(*this)
 {
     DPRINTF(MetaCtrl,
         "Setting up MetaCtrl with %zu controllers\n",
@@ -75,7 +76,7 @@ void MetaCtrl::processQuantum()
 
 MetaCtrl::MetaCtrlStats::MetaCtrlStats(MetaCtrl &_metaCtrl)
     : statistics::Group(&_metaCtrl, "meta_ctrl_stats"),
-    metaCtrl(metaCtrl),
+    metaCtrl(_metaCtrl),
 
     ADD_STAT(perContextService, statistics::units::Count::get(),
         "Per-context attained service")
