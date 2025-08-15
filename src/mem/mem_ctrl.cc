@@ -41,9 +41,12 @@
 #include "mem/mem_ctrl.hh"
 
 #include "base/trace.hh"
+#include "debug/ATLAS.hh" // abj456 added
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
 #include "debug/MemCtrl.hh"
+#include "debug/MemScheduling.hh" // abj456 added
+#include "debug/MetaCtrl.hh" // abj456 added
 #include "debug/NVM.hh"
 #include "debug/QOS.hh"
 #include "mem/dram_interface.hh"
@@ -97,9 +100,28 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
 }
 
 void
+MemCtrl::setMetaCtrl(MetaCtrl* meta_ctrl)
+{
+    metaCtrl = meta_ctrl;
+}
+
+std::unordered_map<ContextID, double>
+MemCtrl::getDramLocalService() const
+{
+    return dram->getLocalService();
+}
+
+void
+MemCtrl::updateGlobalService(
+    std::unordered_map<ContextID, double> &attainedGlobalService)
+{
+    dram->updateGlobalService(attainedGlobalService);
+}
+
+void
 MemCtrl::init()
 {
-   if (!port.isConnected()) {
+    if (!port.isConnected()) {
         fatal("MemCtrl %s is unconnected!\n", name());
     } else {
         port.sendRangeChange();
@@ -111,6 +133,8 @@ MemCtrl::startup()
 {
     // remember the memory system mode of operation
     isTimingMode = system()->isTimingMode();
+
+    // last_quantum = curTick();
 
     if (isTimingMode) {
         // shift the bus busy time sufficiently far ahead that we never
@@ -590,6 +614,11 @@ MemCtrl::chooseNext(MemPacketQueue& queue, Tick extra_col_delay,
             Tick col_allowed_at;
             std::tie(ret, col_allowed_at)
                     = chooseNextFRFCFS(queue, extra_col_delay, mem_intr);
+        } else if (memSchedPolicy == enums::atlas) {
+            // DPRINTF(MemScheduling, "ATLAS algorithm selected\n");
+            Tick col_allowed_at;
+            std::tie(ret, col_allowed_at)
+                    = chooseNextATLAS(queue, extra_col_delay, mem_intr);
         } else {
             panic("No scheduling policy chosen\n");
         }
@@ -613,6 +642,44 @@ MemCtrl::chooseNextFRFCFS(MemPacketQueue& queue, Tick extra_col_delay,
 
     if (selected_pkt_it == queue.end()) {
         DPRINTF(MemCtrl, "%s no available packets found\n", __func__);
+    } else {
+        mem_intr->updateAtlasRank(
+            (*selected_pkt_it)->contextId(), 1
+        );
+    }
+
+    return std::make_pair(selected_pkt_it, col_allowed_at);
+}
+
+std::pair<MemPacketQueue::iterator, Tick>
+MemCtrl::chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
+                                MemInterface* mem_intr)
+{
+    auto selected_pkt_it = queue.end();
+    Tick col_allowed_at = MaxTick;
+
+    // time we need to issue a column command to be seamless
+    const Tick min_col_at = std::max(mem_intr->nextBurstAt + extra_col_delay,
+        curTick());
+
+    std::tie(selected_pkt_it, col_allowed_at) =
+                mem_intr->chooseNextATLAS(queue, min_col_at);
+
+    if (selected_pkt_it == queue.end()) {
+        DPRINTF(MemCtrl, "%s no available packets found\n", __func__);
+    } else {
+        mem_intr->updateAtlasRank(
+            (*selected_pkt_it)->contextId(), 1
+        );
+        mem_intr->mark_old_requests(queue);
+
+        // if (curTick() - last_quantum > quantum_cycles) {
+        //     DPRINTF(MemScheduling, "In %s, last quantum = %llu\n",
+        //             __func__, last_quantum);
+
+        //     last_quantum = curTick();
+        //     mem_intr->decay_service(decay_factor);
+        // }
     }
 
     return std::make_pair(selected_pkt_it, col_allowed_at);
@@ -1002,6 +1069,13 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             }
 
             auto mem_pkt = *to_read;
+            // if (mem_pkt->contextId() < 0) {
+            //     DPRINTF(ATLAS,
+            //         "ATLAS: mem packet context %d, task id %u, req id %u\n",
+            //         mem_pkt->contextId(),
+            //         mem_pkt->taskId(),
+            //         mem_pkt->requestorId());
+            // }
 
             Tick cmd_at = doBurstAccess(mem_pkt, mem_intr);
 

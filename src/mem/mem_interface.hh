@@ -46,8 +46,10 @@
 #ifndef __MEM_INTERFACE_HH__
 #define __MEM_INTERFACE_HH__
 
+#include <cmath>
 #include <deque>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -266,6 +268,19 @@ class MemInterface : public AbstractMemory
      */
     virtual std::pair<MemPacketQueue::iterator, Tick>
     chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const = 0;
+
+    /*
+     * For ATLAS policy
+     */
+    virtual std::pair<MemPacketQueue::iterator, Tick>
+    chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const = 0;
+
+    virtual void updateAtlasRank(ContextID cid, double delta) = 0;
+    virtual void mark_old_requests(MemPacketQueue& queue) = 0;
+    virtual void decay_service(double decay_factor) = 0;
+    virtual std::unordered_map<ContextID, double> getLocalService() = 0;
+    virtual void updateGlobalService(
+        const std::unordered_map<ContextID, double>& totalAS) = 0;
 
     /*
      * Function to calulate unloaded latency

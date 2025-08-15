@@ -778,6 +778,8 @@ class Packet : public Printable, public Extensible<Packet>
     { _qosValue = qos_value; }
 
     inline RequestorID requestorId() const { return req->requestorId(); }
+    inline ContextID contextId() const { return req->contextId(); }
+    inline uint32_t taskId() const { return req->taskId(); }
 
     // Network error conditions... encapsulate them as methods since
     // their encoding keeps changing (from result field to command

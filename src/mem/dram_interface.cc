@@ -43,9 +43,12 @@
 #include "base/bitfield.hh"
 #include "base/cprintf.hh"
 #include "base/trace.hh"
+#include "debug/ATLAS.hh" // abj456 added
 #include "debug/DRAM.hh"
 #include "debug/DRAMPower.hh"
 #include "debug/DRAMState.hh"
+#include "debug/MemScheduling.hh" // abj456 added
+#include "debug/MetaCtrl.hh" // abj456 added
 #include "sim/system.hh"
 
 namespace gem5
@@ -167,6 +170,225 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
     if (selected_pkt_it == queue.end()) {
         DPRINTF(DRAM, "%s no available DRAM ranks found\n", __func__);
     }
+
+    return std::make_pair(selected_pkt_it, selected_col_at);
+}
+
+void DRAMInterface::updateAtlasRank(ContextID cid, double delta) {
+    // DPRINTF(ATLAS, "In %s, context id = %u, delta = %f\n",
+    //            __func__, cid, delta);
+    if (localService.find(cid) == localService.end()) {
+        localService[cid] = delta;
+    } else {
+        localService[cid] += delta;
+    }
+}
+
+void DRAMInterface::mark_old_requests(MemPacketQueue& queue) {
+    for (auto i = queue.begin(); i != queue.end(); ++i) {
+        MemPacket* pkt = *i;
+        if (pkt->isDram() && (pkt->pseudoChannel == pseudoChannel)) {
+            if (curTick() - pkt->entryTime > threshold_cycles) {
+                pkt->marked = true;
+            }
+        }
+    }
+}
+
+void DRAMInterface::decay_service(double decay_factor) {
+    DPRINTF(MemScheduling, "In %s\n", __func__);
+
+    for (auto &req_rank: localService) {
+        ContextID cid = req_rank.first;
+
+        attainedTotalService[cid] = decay_factor * attainedTotalService[cid] +
+                            (1 - decay_factor) * localService[cid];
+        localService[cid] = 0.0;
+
+        DPRINTF(MemScheduling, "In %s, context id = %d, service = %f\n",
+                __func__, cid, attainedTotalService[cid]);
+    }
+}
+
+std::unordered_map<ContextID, double>
+DRAMInterface::getLocalService() {
+    DPRINTF(MetaCtrl, "In %s\n", __func__);
+
+    std::unordered_map<ContextID, double> local_service_copy;
+    for (const auto &[cid, service]: localService) {
+        local_service_copy[cid] = service;
+    }
+
+    return local_service_copy;
+}
+
+void DRAMInterface::updateGlobalService(
+    const std::unordered_map<ContextID, double>& global_service) {
+    DPRINTF(MetaCtrl, "In %s\n", __func__);
+
+    for (const auto &[cid, service]: global_service) {
+        localService[cid] = 0.0;
+        attainedTotalService[cid] = service;
+
+        DPRINTF(MetaCtrl, "In %s, context id = %d, service = %f\n",
+                __func__, cid, attainedTotalService[cid]);
+    }
+}
+
+std::pair<MemPacketQueue::iterator, Tick>
+DRAMInterface::chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const {
+    // panic("ATLAS NOT IMPLEMENTED IN DRAM\n");
+
+    std::vector<uint32_t> earliest_banks(ranksPerChannel, 0);
+
+    // Has minBankPrep been called to populate earliest_banks?
+    bool filled_earliest_banks = false;
+    // can the PRE/ACT sequence be done without impacting utlization?
+    bool hidden_bank_prep = false;
+
+    // search for seamless row hits first, if no seamless row hit is
+    // found then determine if there are other packets that can be issued
+    // without incurring additional bus delay due to bank timing
+    // Will select closed rows first to enable more open row possibilies
+    // in future selections
+    bool found_hidden_bank = false;
+
+    // remember if we found a row hit, not seamless, but bank prepped
+    // and ready
+    bool found_prepped_pkt = false;
+
+    // if we have no row hit, prepped or not, and no seamless packet,
+    // just go for the earliest possible
+    bool found_earliest_pkt = false;
+
+    Tick selected_col_at = MaxTick;
+    auto selected_pkt_it = queue.end();
+
+    for (auto i = queue.begin(); i != queue.end(); ++i) {
+        MemPacket *pkt = *i;
+
+        // select optimal DRAM packet in Q
+        if (pkt->isDram() && pkt->pseudoChannel == pseudoChannel) {
+            const Bank &bank = ranks[pkt->rank]->banks[pkt->bank];
+            const Tick col_allowed_at = pkt->isRead() ? bank.rdAllowedAt :
+                                                        bank.wrAllowedAt;
+
+            DPRINTF(DRAM, "%s checking DRAM packet in bank %d, row %d\n",
+                __func__, pkt->bank, pkt->row);
+
+            // check if rank is not doing a refresh and thus is available,
+            // if not, jump to the next packet
+            if (burstReady(pkt)) {
+
+                DPRINTF(DRAM,
+                    "%s bank %d - Rank %d available\n", __func__,
+                    pkt->bank, pkt->rank);
+
+                // first return marked MemPacket
+                if (selected_pkt_it != queue.end() &&
+                    (*selected_pkt_it)->isMarked() ^ pkt->isMarked() ) {
+                    // if we have a marked packet, and the current one is
+                    // not, select the marked one
+                    // if we have a marked packet, and the current one is
+                    // also marked, select the one with the lowest rank
+
+                    // DPRINTF(ATLAS, "%s found marked packet\n", __func__);
+                    if (pkt->isMarked()) {
+                        selected_pkt_it = i;
+                        selected_col_at = col_allowed_at;
+                    }
+                    break;
+                }
+                // Least Attained Service
+                if (selected_pkt_it != queue.end()) {
+                    // check if curr req ranking < selected one
+                    ContextID best_cid =
+                                    (*selected_pkt_it)->contextId();
+                    ContextID curr_cid = pkt->contextId();
+
+                    double best_rank = (attainedTotalService.count(best_cid))
+                                        ? attainedTotalService.at(best_cid)
+                                        : __DBL_MAX__;
+                    double curr_rank = (attainedTotalService.count(curr_cid))
+                                        ? attainedTotalService.at(curr_cid)
+                                        : __DBL_MAX__;
+
+                    if (curr_rank < best_rank) {
+                        selected_pkt_it = i;
+                        selected_col_at = col_allowed_at;
+                    }
+                    continue;
+                }
+
+                // FR-FCFS
+                if (bank.openRow == pkt->row) {
+                    // check if it is a row hit
+                    // no additional rank-to-rank or same bank-group
+                    // delays, or we switched read/write and might as well
+                    // go for the row hit
+                    if (col_allowed_at <= min_col_at) {
+                        // FCFS within the hits, giving priority to
+                        // commands that can issue seamlessly, without
+                        // additional delay, such as same rank accesses
+                        // and/or different bank-group accesses
+                        DPRINTF(DRAM, "%s Seamless buffer hit\n", __func__);
+                        selected_pkt_it = i;
+                        selected_col_at = col_allowed_at;
+                        // no need to look through the remaining queue entries
+                        break;
+                    } else if (!found_hidden_bank && !found_prepped_pkt) {
+                        // if we did not find a packet to a closed row that can
+                        // issue the bank commands without incurring delay, and
+                        // did not yet find a packet to a prepped row, remember
+                        // the current one
+                        selected_pkt_it = i;
+                        selected_col_at = col_allowed_at;
+                        found_prepped_pkt = true;
+                        DPRINTF(DRAM, "%s Prepped row buffer hit\n", __func__);
+                    }
+                } else if (!found_earliest_pkt) { // FCFS
+                    // if we have not initialised the bank status, do it
+                    // now, and only once per scheduling decisions
+                    if (!filled_earliest_banks) {
+                        // determine entries with earliest bank delay
+                        std::tie(earliest_banks, hidden_bank_prep) =
+                            minBankPrep(queue, min_col_at);
+                        filled_earliest_banks = true;
+                    }
+
+                    // bank is amongst first available banks
+                    // minBankPrep will give priority to packets that can
+                    // issue seamlessly
+                    if (bits(earliest_banks[pkt->rank],
+                             pkt->bank, pkt->bank)) {
+                        found_earliest_pkt = true;
+                        found_hidden_bank = hidden_bank_prep;
+
+                        // give priority to packets that can issue
+                        // bank commands 'behind the scenes'
+                        // any additional delay if any will be due to
+                        // col-to-col command requirements
+                        if (hidden_bank_prep || !found_prepped_pkt) {
+                            selected_pkt_it = i;
+                            selected_col_at = col_allowed_at;
+                        }
+                    }
+                }
+
+
+            } else {
+                DPRINTF(DRAM, "%s bank %d - Rank %d not available\n",
+                    __func__, pkt->bank, pkt->rank);
+            }
+        }
+    }
+
+    if (selected_pkt_it == queue.end()) {
+        DPRINTF(DRAM, "%s no available DRAM ranks found\n", __func__);
+    }
+    // RequestorID req_id = (*selected_pkt_it)->requestorId();
+    // DPRINTF(ATLAS, "In %s, atlasRank[%u] = %f\n",
+    //         __func__, req_id, attainedTotalService.at(req_id));
 
     return std::make_pair(selected_pkt_it, selected_col_at);
 }

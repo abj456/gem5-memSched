@@ -251,6 +251,20 @@ class NVMInterface : public MemInterface
     std::pair<MemPacketQueue::iterator, Tick>
     chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const override;
 
+    std::pair<MemPacketQueue::iterator, Tick>
+    chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const override;
+
+    void updateAtlasRank(ContextID cid, double delta) override;
+
+    void mark_old_requests(MemPacketQueue& queue) override;
+
+    void decay_service(double decay_factor) override;
+
+    std::unordered_map<ContextID, double> getLocalService() override;
+
+    void updateGlobalService(
+        const std::unordered_map<ContextID, double>& totalAS) override;
+
     /**
      *  Add rank to rank delay to bus timing to all NVM banks in alli ranks
      *  when access to an alternate interface is issued

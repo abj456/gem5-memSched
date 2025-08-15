@@ -55,9 +55,11 @@
 #include "base/callback.hh"
 #include "base/statistics.hh"
 #include "enums/MemSched.hh"
+#include "mem/meta_ctrl.hh"
 #include "mem/qos/mem_ctrl.hh"
 #include "mem/qport.hh"
 #include "params/MemCtrl.hh"
+#include "params/MetaCtrl.hh"
 #include "sim/eventq.hh"
 
 namespace gem5
@@ -110,6 +112,8 @@ class MemPacket
 
     /** RequestorID associated with the packet */
     const RequestorID _requestorId;
+    const ContextID _contextId;
+    const uint32_t _taskId;
 
     const bool read;
 
@@ -173,6 +177,8 @@ class MemPacket
      * (interface compatibility with Packet)
      */
     inline RequestorID requestorId() const { return _requestorId; }
+    inline ContextID contextId() const { return _contextId; }
+    inline uint32_t taskId() const { return _taskId; }
 
     /**
      * Get the packet size
@@ -203,11 +209,17 @@ class MemPacket
      */
     inline bool isDram() const { return dram; }
 
+    bool marked = false;
+    inline bool isMarked() const { return marked; }
+
+
     MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _channel,
                uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
                Addr _addr, unsigned int _size)
         : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
-          _requestorId(pkt->requestorId()),
+          _requestorId(pkt->requestorId()), // Added for ATLAS
+          _contextId(pkt->contextId()), // Added for ATLAS
+          _taskId(pkt->taskId()), // Added for ATLAS
           read(is_read), dram(is_dram), pseudoChannel(_channel), rank(_rank),
           bank(_bank), row(_row), bankId(bank_id), addr(_addr), size(_size),
           burstHelper(NULL), _qosValue(_pkt->qosValue())
@@ -431,6 +443,24 @@ class MemCtrl : public qos::MemCtrl
     virtual std::pair<MemPacketQueue::iterator, Tick>
     chooseNextFRFCFS(MemPacketQueue& queue, Tick extra_col_delay,
                     MemInterface* mem_intr);
+
+    virtual std::pair<MemPacketQueue::iterator, Tick>
+    chooseNextATLAS(MemPacketQueue& queue, Tick extra_col_delay,
+                    MemInterface* mem_intr);
+
+    // Tick last_quantum;
+
+    /**
+     * Used to periodically decay the service of each requestor
+     */
+    // const Tick quantum_cycles =
+    //     static_cast<Tick>(200 * 1e7);
+    // 10M cycles, 200 = 1 / 5Ghz ps(ticks)
+
+    /**
+     * Decay factor for ATLAS
+     */
+    const double decay_factor = 0.875; // alpha factor in ATLAS paper
 
     /**
      * Calculate burst window aligned tick
@@ -673,9 +703,32 @@ class MemCtrl : public qos::MemCtrl
      */
     virtual void pruneBurstTick();
 
+    /**
+     * Meta controller pointer
+     * This is used to update the global service of the memory controller
+     * and to get the local service of the memory controller.
+     */
+    MetaCtrl* metaCtrl;
+
   public:
 
     MemCtrl(const MemCtrlParams &p);
+
+    /**
+     * Set the meta controller pointer
+     */
+    void setMetaCtrl(MetaCtrl* meta_ctrl);
+
+    /**
+     * Get the local service of the memory controller
+     */
+    std::unordered_map<ContextID, double> getDramLocalService() const;
+
+    /**
+     * Update the global service of the memory controller
+     */
+    void updateGlobalService(
+      std::unordered_map<ContextID, double> &attainedGlobalService);
 
     /**
      * Ensure that all interfaced have drained commands

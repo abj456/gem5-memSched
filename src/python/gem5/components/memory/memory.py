@@ -41,6 +41,7 @@ from m5.objects import (
     AddrRange,
     DRAMInterface,
     MemCtrl,
+    MetaCtrl,
     Port,
 )
 from m5.util.convert import toMemorySize
@@ -133,6 +134,8 @@ class ChanneledMemory(AbstractMemorySystem):
         self.mem_ctrl = [
             MemCtrl(dram=self._dram[i]) for i in range(self._num_channels)
         ]
+
+        self.meta_ctrl = MetaCtrl(memCtrls=self.mem_ctrl)
 
     def _get_dram_size(self, num_channels: int, dram: DRAMInterface) -> int:
         return num_channels * (

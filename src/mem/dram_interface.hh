@@ -662,6 +662,14 @@ class DRAMInterface : public MemInterface
         return (burstInterleave ? tBURST_MAX / 2 : tBURST);
     }
 
+    /**
+     * For ATLAS policy, find first DRAM command that can issue and accomplish
+     * requirements of ATLAS
+     */
+    std::unordered_map<ContextID, double> attainedTotalService;
+    std::unordered_map<ContextID, double> localService;
+    // std::vector<double> attainedService;
+
   public:
     /**
      * Initialize the DRAM interface and verify parameters
@@ -729,6 +737,29 @@ class DRAMInterface : public MemInterface
      */
     std::pair<MemPacketQueue::iterator, Tick>
     chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const override;
+
+    /**
+     * For ATLAS policy, find first DRAM command that can issue and accomplish
+     * requirements of ATLAS
+     */
+    std::pair<MemPacketQueue::iterator, Tick>
+    chooseNextATLAS(MemPacketQueue& queue, Tick min_col_at) const override;
+
+    /**
+     * Used to avoid starvation in ATLAS policy
+     */
+    const Tick threshold_cycles =
+        static_cast<Tick>(200 * 1e5); // 100K cycles, 200 = 1 / 5GHz ps(ticks)
+    void updateAtlasRank(ContextID cid, double delta) override;
+
+    void mark_old_requests(MemPacketQueue& queue) override;
+
+    void decay_service(double decay_factor) override;
+
+    std::unordered_map<ContextID, double> getLocalService() override;
+
+    void updateGlobalService(
+        const std::unordered_map<ContextID, double>& totalAS) override;
 
     /**
      * Actually do the burst - figure out the latency it

@@ -916,8 +916,8 @@ class Request : public Extensible<Request>
     ContextID
     contextId() const
     {
-        assert(hasContextId());
-        return _contextId;
+        // assert(hasContextId());
+        return hasContextId() ? _contextId : InvalidContextID;
     }
 
     /* For GPU fullsystem mark this request is not to device memory. */
